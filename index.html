@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Urban Growth Analytics — Predictive Real Estate Intelligence</title>
+  <meta name="description" content="Predictive Geospatial Analytics Engine identifying future development hotspots through multi-source data correlation of municipal declarations and market intelligence across Indian metros." />
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+  <!-- App CSS -->
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <!-- ── Loading Overlay ──────────────────────────────────── -->
+  <div class="loading-overlay" id="loading-overlay">
+    <div class="loading-spinner"></div>
+    <div class="loading-text">Initializing Analytics Engine…</div>
+  </div>
+
+  <!-- ── Header ───────────────────────────────────────────── -->
+  <header class="header" id="app-header">
+    <div class="header-brand">
+      <div class="brand-icon">📊</div>
+      <div class="brand-text">
+        <h1>Urban Growth Analytics</h1>
+        <div class="brand-sub">Predictive Real Estate Intelligence Engine</div>
+      </div>
+    </div>
+
+    <div class="header-controls">
+      <div class="control-group">
+        <span class="control-label">City</span>
+        <select class="control-select" id="city-filter">
+          <option value="All Cities">All Cities</option>
+          <option value="Pune">Pune</option>
+          <option value="Bengaluru">Bengaluru</option>
+          <option value="Hyderabad">Hyderabad</option>
+          <option value="Mumbai">Mumbai</option>
+          <option value="Noida">Noida / NCR</option>
+          <option value="Chennai">Chennai</option>
+        </select>
+      </div>
+
+      <div class="control-group">
+        <span class="control-label">Projection</span>
+        <div class="range-wrapper">
+          <input type="range" class="control-range" id="time-horizon"
+                 min="12" max="60" step="6" value="36" />
+          <span class="range-value" id="horizon-value">36 months</span>
+        </div>
+      </div>
+
+      <button class="btn-mode" id="map-mode-toggle" title="Switch to Marker View">
+        🗺️ Markers
+      </button>
+    </div>
+  </header>
+
+  <!-- ── Main Layout ──────────────────────────────────────── -->
+  <div class="main-layout" id="main-layout">
+
+    <!-- Map -->
+    <div class="map-container">
+      <div id="map"></div>
+
+      <!-- Map Legend -->
+      <div class="map-legend">
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <div class="legend-gradient"></div>
+          <div class="legend-labels">
+            <span>Low GVS</span>
+            <span>High GVS</span>
+          </div>
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background: #ff4757;"></div>
+          Hot (70+)
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background: #ff9f43;"></div>
+          Warm (50-69)
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background: #00e676;"></div>
+          Emerging (30-49)
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background: #74b9ff;"></div>
+          Stable (&lt;30)
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Panel -->
+    <div class="right-panel" id="right-panel">
+
+      <!-- KPI Strip -->
+      <div class="kpi-strip">
+        <div class="kpi-card accent-cyan">
+          <div class="kpi-icon">🏙️</div>
+          <div class="kpi-value" id="kpi-zones" data-target="0">0</div>
+          <div class="kpi-label">Zones</div>
+        </div>
+        <div class="kpi-card accent-amber">
+          <div class="kpi-icon">⚡</div>
+          <div class="kpi-value" id="kpi-gvs" data-target="0">0</div>
+          <div class="kpi-label">Avg GVS</div>
+        </div>
+        <div class="kpi-card accent-emerald">
+          <div class="kpi-icon">🏗️</div>
+          <div class="kpi-value" id="kpi-infra" data-target="0">0</div>
+          <div class="kpi-label">Projects</div>
+        </div>
+        <div class="kpi-card accent-purple">
+          <div class="kpi-icon">📋</div>
+          <div class="kpi-value" id="kpi-listings" data-target="0">0</div>
+          <div class="kpi-label">Listings</div>
+        </div>
+        <div class="kpi-card accent-red">
+          <div class="kpi-icon">🔥</div>
+          <div class="kpi-value" id="kpi-hot" data-target="0">0</div>
+          <div class="kpi-label">Hot Zones</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon">🏆</div>
+          <div class="kpi-value" id="kpi-top-zone" style="font-size: 0.9rem;">—</div>
+          <div class="kpi-label">Top Zone</div>
+        </div>
+      </div>
+
+      <!-- Zone Detail Panel (hidden until zone clicked) -->
+      <div class="zone-detail" id="zone-detail-panel">
+        <div class="zone-detail-header">
+          <div>
+            <h2 id="zone-detail-name">Zone Name</h2>
+            <div class="zone-detail-meta" id="zone-detail-meta">City · Ward · Type</div>
+          </div>
+          <button class="btn-close" id="close-zone-detail" title="Close detail panel">✕</button>
+        </div>
+
+        <!-- Score Badges -->
+        <div class="zone-score-row" id="zone-detail-scores"></div>
+
+        <!-- Market Snapshot -->
+        <div class="section-header">Market Snapshot</div>
+        <div class="market-snapshot" id="zone-market-snapshot"></div>
+
+        <!-- Price Trend Chart -->
+        <div class="chart-card">
+          <div class="chart-card-title">Price Trend</div>
+          <div class="chart-wrapper">
+            <canvas id="chart-price-trend"></canvas>
+          </div>
+        </div>
+
+        <!-- GVS Gauge -->
+        <div class="chart-card">
+          <div class="chart-card-title">Growth Velocity Breakdown</div>
+          <div class="chart-wrapper chart-wrapper-sm">
+            <canvas id="chart-gvs-gauge"></canvas>
+          </div>
+        </div>
+
+        <!-- Growth Projections -->
+        <div class="chart-card">
+          <div class="chart-card-title">Growth Projections</div>
+          <div id="zone-projections"></div>
+        </div>
+
+        <!-- Municipal Pipeline -->
+        <div class="chart-card">
+          <div class="chart-card-title">Infrastructure Pipeline</div>
+          <div class="chart-wrapper chart-wrapper-sm">
+            <canvas id="chart-pipeline"></canvas>
+          </div>
+        </div>
+
+        <!-- Declarations List -->
+        <div class="chart-card">
+          <div class="chart-card-title">Municipal Declarations</div>
+          <div class="declarations-section" id="zone-declarations"></div>
+        </div>
+      </div>
+
+      <!-- Placeholder (shown when no zone selected) -->
+      <div class="placeholder-state" id="zone-placeholder">
+        <div class="placeholder-icon">🗺️</div>
+        <div class="placeholder-title">Select a Zone</div>
+        <div class="placeholder-desc">
+          Click any marker on the map or select a zone from the heatmap to view detailed growth analytics, price trends, and municipal declarations.
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── Bottom Panel ─────────────────────────────────────── -->
+  <div class="bottom-panel" id="bottom-panel">
+    <div class="chart-card">
+      <div class="chart-card-title">Top Growth Zones (GVS Ranking)</div>
+      <div class="chart-wrapper">
+        <canvas id="chart-top-zones"></canvas>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-card-title">Rental Yield vs Selling Price — Undervaluation Map</div>
+      <div class="chart-wrapper">
+        <canvas id="chart-scatter"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Scripts ──────────────────────────────────────────── -->
+  <!-- Leaflet -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- Leaflet Heat -->
+  <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+
+  <!-- Data -->
+  <script src="data/zones.js"></script>
+  <script src="data/municipal.js"></script>
+  <script src="data/market.js"></script>
+
+  <!-- Engine & Visualization -->
+  <script src="js/engine.js"></script>
+  <script src="js/map.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/app.js"></script>
+
+  <!-- Hide loader after init -->
+  <script>
+    window.addEventListener("load", () => {
+      setTimeout(() => {
+        const loader = document.getElementById("loading-overlay");
+        if (loader) loader.classList.add("hidden");
+
+        // Hide placeholder when zone detail is shown
+        const observer = new MutationObserver(() => {
+          const detail = document.getElementById("zone-detail-panel");
+          const placeholder = document.getElementById("zone-placeholder");
+          if (detail && placeholder) {
+            placeholder.style.display = detail.classList.contains("active") ? "none" : "flex";
+          }
+        });
+        const detail = document.getElementById("zone-detail-panel");
+        if (detail) observer.observe(detail, { attributes: true, attributeFilter: ["class"] });
+      }, 800);
+    });
+  </script>
+</body>
+</html>
